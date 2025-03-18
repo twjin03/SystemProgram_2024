@@ -77,7 +77,7 @@ int hpfp_to_int_converter(hpfp input){
 }
 
 /** float -> hpfp로 변환 */
-hpfp float_converter(float input) {
+hpfp float_converter(float input){
   // 특수값 처리 (normalized, denormalized, special values)
   if (input > HPFP_MAX) return HPFP_POS_INF;
   if (input < -HPFP_MAX) return HPFP_NEG_INF;
@@ -93,7 +93,7 @@ hpfp float_converter(float input) {
 
   // MSB 위치 탐색
   int count = 0;
-  for (int i = 15; i >= 0; i--) {
+  for (int i = 15; i >= 0; i--){
       if ((inputInt >> i) & 1) break;
       count++;
   }
@@ -111,12 +111,12 @@ hpfp float_converter(float input) {
 }
 
 /** hpfp -> float로 변환 */
-float hpfp_to_float_converter(hpfp input) {
+float hpfp_to_float_converter(hpfp input){
   unsigned short s = (input >> 15) & 1;      // sign bit 추출
   unsigned short exp = (input >> 10) & 0x1F; // exponent bits 추출
   unsigned short M = input & 0x3FF;          // mantissa bits 추출
 
-  if (exp == 0b11111) {
+  if (exp == 0b11111){
       if (M == 0) return s ? HPFP_NAN : HPFP_MAX; // 양/음의 무한대 처리
       else return HPFP_NAN; // NaN 처리
   }
@@ -131,7 +131,7 @@ float hpfp_to_float_converter(hpfp input) {
 }
 
 /** hpfp 덧셈 연산 */
-hpfp addition_function(hpfp a, hpfp b) {
+hpfp addition_function(hpfp a, hpfp b){
   // a, b 에 대해서 sign, exponent, fraction 추출
   unsigned short sA = (a >> 15) & 1;
   unsigned short expA = (a >> 10) & 0x1F;
@@ -153,48 +153,48 @@ hpfp addition_function(hpfp a, hpfp b) {
   // 지수 정렬
   int shift = 0;
   unsigned short exp_out;
-  if (expA > expB) {
+  if (expA > expB){
       shift = expA - expB;
       exp_out = expA;
       fracB >>= shift; // 지수 차이만큼 fracB를 정렬
-  } else if (expB > expA) {
+  } else if (expB > expA){
       shift = expB - expA;
       exp_out = expB;
       fracA >>= shift; // 지수 차이만큼 fracA를 정렬
-  } else {
+  } else{
       exp_out = expA;
   }
 
   // 부호에 따른 연산
   unsigned short s_out;
   unsigned int frac_out;
-  if (sA == sB) { // 같은 부호이면 더하기
+  if (sA == sB){ // 같은 부호이면 더하기
       frac_out = fracA + fracB;
       s_out = sA;
-  } else { // 다른 부호이면 빼기
-      if (fracA > fracB) {
+  } else{ // 다른 부호이면 빼기
+      if (fracA > fracB){
           frac_out = fracA - fracB;
           s_out = sA;
-      } else {
+      } else{
           frac_out = fracB - fracA;
           s_out = sB;
       }
   }
 
   // 오버플로우 처리 (자릿수 초과 시)
-  if (frac_out & (1 << 11)) { 
+  if (frac_out & (1 << 11)){ 
       frac_out >>= 1;
       exp_out++;
   }
 
   // 정규화 과정
-  while (frac_out && !(frac_out & (1 << 10))) {
+  while (frac_out && !(frac_out & (1 << 10))){
       frac_out <<= 1;
       exp_out--;
   }
 
   // underflow 방지
-  if (exp_out <= 0) {
+  if (exp_out <= 0){
       frac_out >>= (1 - exp_out);
       exp_out = 0;
   }
@@ -207,7 +207,7 @@ hpfp addition_function(hpfp a, hpfp b) {
 }
 
 /** hpfp 곱셈 연산 */
-hpfp multiply_function(hpfp a, hpfp b) {
+hpfp multiply_function(hpfp a, hpfp b){
   //필요한 변수 선언 
   //a, b 에 대해서 s, exp, frac 추출
   int sA = (a >> 15) & 1; // sign bit 추출
@@ -227,15 +227,15 @@ hpfp multiply_function(hpfp a, hpfp b) {
   int i;
 
   //specialized
-  if ((expA == 0b11111 && fracA != 0) || (expB == 0b11111 && fracB != 0)) {  
+  if ((expA == 0b11111 && fracA != 0) || (expB == 0b11111 && fracB != 0)){  
     return HPFP_NAN; // NaN 반환
   }
 
 // a 또는 b가 무한대일 경우
-if (expA == 0b11111 || expB == 0b11111) { 
+if (expA == 0b11111 || expB == 0b11111){ 
     // 하나가 무한대이고, 다른 하나가 0이면 NaN 반환
     if ((expA == 0b11111 && expB == 0 && fracB == 0) || 
-        (expB == 0b11111 && expA == 0 && fracA == 0)) {
+        (expB == 0b11111 && expA == 0 && fracA == 0)){
         return HPFP_NAN; // NaN 반환
     }
 
@@ -262,14 +262,14 @@ if (expA == 0b11111 || expB == 0b11111) {
 
   frac_out = frac_tempA * frac_tempB;
 
-  if (frac_out & 0b1000000000000000000000) {
+  if (frac_out & 0b1000000000000000000000){
       exp_out++;
       frac_out >>= 1;
   }
 
 
   int round = 0;
-  if ((frac_out & 0x03FF) > 0x0200) {
+  if ((frac_out & 0x03FF) > 0x0200){
       round = 1;
   }
 
@@ -277,13 +277,11 @@ if (expA == 0b11111 || expB == 0b11111) {
   output |= (exp_out << 10) & 0x7c00;
   output |= (((frac_out >> 10) + round) & 0x03FF);
 
-
   return output;
-
 }
 
 /** hpfp 비교 연산 */
-char *comparison_function(hpfp a, hpfp b) {
+char *comparison_function(hpfp a, hpfp b){
   unsigned short sA = (a >> 15) & 1;
   unsigned short expA = (a >> 10) & 0x1F;
   unsigned short fracA = a & 0x3FF;
@@ -303,11 +301,11 @@ char *comparison_function(hpfp a, hpfp b) {
 }
 
 /** hpfp 값을 bits로 표시하기 */
-char *hpfp_to_bits_converter(hpfp result) {
+char *hpfp_to_bits_converter(hpfp result){
   char *bits = (char *)malloc(17);
   if (!bits) return NULL; // 메모리 할당 실패 시 NULL 반환
 
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < 16; i++){
       bits[i] = '0' + ((result >> (15 - i)) & 1);
   }
   bits[16] = '\0';
@@ -316,7 +314,7 @@ char *hpfp_to_bits_converter(hpfp result) {
 }
 // 추후 수정 !!!
 /** Example: hpfp(0100010011110011) -> float(4.95) -> float(59.4) -> hpfp(0101001101101100) */
-char *hpfp_flipper(char *input) {
+char *hpfp_flipper(char *input){
   hpfp input_H = 0, output_H = 0;
   float input_F = 0, output_F = 0;
   int tempInt = 0, intReversed = 0;
@@ -324,7 +322,7 @@ char *hpfp_flipper(char *input) {
   float precision = 1.0;
 
   // hpfp 값으로 변환
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < 16; i++){
       input_H = (input_H << 1) | (input[i] - '0');
   }
 
@@ -333,7 +331,7 @@ char *hpfp_flipper(char *input) {
 
   // 소수점 이하 자릿수 찾기 (무한 루프 방지)
   float temp = input_F;
-  while (count < max_count && (temp - (int)temp) > 0.00001) {
+  while (count < max_count && (temp - (int)temp) > 0.00001){
       temp *= 10;
       precision *= 10;
       count++;
@@ -341,7 +339,7 @@ char *hpfp_flipper(char *input) {
 
   // 정수 형태로 변환 후 뒤집기
   tempInt = (int)(input_F * precision);
-  while (tempInt) {
+  while (tempInt){
       intReversed = intReversed * 10 + tempInt % 10;
       tempInt /= 10;
   }
