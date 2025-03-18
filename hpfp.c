@@ -127,8 +127,8 @@ float hpfp_to_float_converter(hpfp input){
   return s ? -value : value;
 }
 
-hpfp addition_function(hpfp a, hpfp b)
-{
+/** hpfp 덧셈 연산 */
+hpfp addition_function(hpfp a, hpfp b){
   // 필요한 변수 선언
   // a, b 에 대해서 s, exp, frac 추출
   unsigned short sA = (a >> 15) & 1;      // sign bit 추출
@@ -178,6 +178,7 @@ hpfp addition_function(hpfp a, hpfp b)
 
 }
 
+/** hpfp 곱셈 연산 */
 hpfp multiply_function(hpfp a, hpfp b)
 {
   // 필요한 변수 선언
@@ -190,136 +191,32 @@ hpfp multiply_function(hpfp a, hpfp b)
   int expB = (b >> 10) & 0x1F; // exponent bits 추출
   int fracB = b & 0x3FF;       // significand bits 추출
 
-  int s_out = 0;
-  int exp_out = 0;
-  int frac_out = 0;
+  if ((expA == 0b11111 && fracA) || (expB == 0b11111 && fracB)) return HPFP_NAN; // NaN 처리
+  if (((expA == 0b11111) && (expB == 0 && fracB == 0)) || ((expB == 0b11111) && (expA == 0 && fracA == 0))) return 0b0111110000000001; // 무한대 * 0 → NaN
+  if (expA == 0b11111 || expB == 0b11111) return (sA ^ sB) ? HPFP_NEG_INF : HPFP_POS_INF; // 무한대 처리
+  if ((expA == 0 && fracA == 0) || (expB == 0 && fracB == 0)) return HPFP_POS_ZERO; // 0 처리
+  
+  // 부호 및 지수 연산 
+  unsigned short s_out = sA ^ sB;
+  int exp_out = expA + expB - 15;
 
-  int output = 0;
+  // 정규화된 값이면 Mantissa에 leading 1 추가 
+  fracA |= (expA ? 1 << 10 : 0);
+  fracB |= (expB ? 1 << 10 : 0);
 
-  int i;
+  // 가수 곱셈 
+  unsigned int frac_out = (unsigned int)fracA * fracB;
 
-  // specialized
-  if ((expA == 0b11111 && fracA != 0) || (expB == 0b11111 && fracB != 0))
-  {                            // a, b 둘 중 하나 NaN
-    return 0b0111110000000001; // NaN
-  }
-
-  if ((expA == 0b11111 && fracA == 0) || (expB == 0b11111 && fracB == 0))
-  { // a, b 둘 중 하나 이상 무한대
-    if (expA == expB)
-    { // 둘 다 무한대
-      if (sA == sB)
-      {                            // 부호 같음
-        return 0b0111110000000000; // 양의 무한대 반환
-      }
-      else
-      {                            // sA != sB, 부호 다름
-        return 0b1111110000000000; // 음의 무한대 반환
-      }
-    }
-    else
-    { // 둘 중 하나만 무한대
-      if (sA == 0 && expA == 0b11111 && fracA == 0)
-      { // a가 양의 무한대
-        if (expB == 0b11111 && fracB != 0)
-        {                            // b가 NaN
-          return 0b0111110000000001; // NaN
-        }
-        else
-        { // b가 NaN이 아님
-          if (expB == 0 && fracB == 0)
-          {                            // b가 0
-            return 0b0111110000000001; // NaN
-          }
-          else
-            return 0b0111110000000000; // 양의 무한대
-        }
-      }
-      else if (sA == 1 && expA == 0b11111 && fracA == 0)
-      { // a가 음의 무한대
-        if (expB == 0b11111 && fracB != 0)
-        {                            // b가 NaN
-          return 0b0111110000000001; // NaN
-        }
-        else
-        { // b가 NaN이 아님
-          if (expB == 0 && fracB == 0)
-          {                            // b가 0
-            return 0b0111110000000001; // NaN
-          }
-          else
-            return 0b1111110000000000; // 음의 무한대
-        }
-      }
-      else if (sB == 0 && expB == 0b11111 && fracB == 0)
-      { // b가 양의 무한대
-        if (expA == 0b11111 && fracA != 0)
-        { // a가 NaN
-          return 0b0111110000000001;
-        }
-        else
-        { // a가 NaN이 아님
-          if (expA == 0 && fracA == 0)
-          {                            // a가 0
-            return 0b0111110000000001; // NaN
-          }
-          else
-            return 0b0111110000000000; // 양의 무한대
-        }
-      }
-      else
-      { // b가 음의 무한대
-        if (expA == 0b11111 && fracA != 0)
-        { // a가 NaN
-          return 0b0111110000000001;
-        }
-        else
-        { // a가 NaN이 아님
-          if (expA == 0 && fracA == 0)
-          {                            // a가 0
-            return 0b0111110000000001; // NaN
-          }
-          else
-            return 0b1111110000000000; // 음의 무한대
-        }
-      }
-    }
-  }
-  s_out = sA ^ sB;
-  exp_out = expA + expB - 15;
-
-  int frac_tempA = 0;
-  int frac_tempB = 0;
-
-  // leading 1 붙여서 frac 값 꺼내오기
-  frac_tempA = fracA + (1 << 10);
-  frac_tempB = fracB + (1 << 10);
-
-  // denormalized
-  if (expA == 0b00000)
-    frac_tempA = fracA;
-  if (expB == 0b00000)
-    frac_tempB = fracB;
-
-  frac_out = frac_tempA * frac_tempB;
-
-  if (frac_out & 0b1000000000000000000000)
-  {
+  // normalization
+  if (frac_out & (1 << 21)) {
     exp_out++;
     frac_out >>= 1;
   }
+  
+  frac_out &= 0x3FF; // Mantissa는 10비트만 사용하므로 상위 비트 삭제
 
-  int round = 0;
-  if ((frac_out & 0x03FF) > 0x0200)
-  {
-    round = 1;
-  }
-
-  output |= (s_out << 15) & 0x8000;
-  output |= (exp_out << 10) & 0x7c00;
-  output |= (((frac_out >> 10) + round) & 0x03FF);
-
-  return output;
+  // 최종 hpfp값 반환
+  return (s_out << 15) | ((expA + 15) << 10) | frac_out;
 }
 
 char *comparison_function(hpfp a, hpfp b)
