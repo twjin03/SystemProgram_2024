@@ -4,189 +4,75 @@
 
 #define HPFP_MAX 65535
 
-/*
-첫 줄에 denotes the number of inputs as int
-following lines에는 int type 입력들이 포함됨
+// special case, denormalized case 값 정의 
+#define HPFP_POS_INF 0b0111110000000000
+#define HPFP_NEG_INF 0b1111110000000000
+#define HPFP_NAN     0b0111110000000001
+#define HPFP_POS_ZERO 0b0000000000000000
+#define HPFP_NEG_ZERO 0b1000000000000000
 
-float type입력과 hpfp입력의 경우에도 같은 형식
-*/
-
-float my_pow(float base, int exponent)
-{
+/** 제곱 계산 */
+float my_pow(float base, int exponent){
   float result = 1.0;
-  while (exponent > 0)
-  {
+  while (exponent > 0){
     result *= base;
     exponent--;
   }
   return result;
 }
 
-float my_fmod(float x, float y)
-{
-  while (x >= y)
-  {
+/** 모듈러 연산 */
+float my_fmod(float x, float y){
+  while (x >= y){
     x -= y;
   }
   return x;
 }
 
-hpfp int_converter(int input)
-{ /* convert int into hpfp */ // int를 hpfp로
+/** int -> hpfp로 변환 */
+hpfp int_converter(int input){ 
+  // 특수값 처리 (normalized, demormalized, special values)
+  if (input > HPFP_MAX) return HPFP_POS_INF;
+  if (input < -HPFP_MAX) return HPFP_NEG_INF; 
+  if (input == 0) return HPFP_POS_ZERO; // For **int** 0, mark the result as **hpfp** +0.0
 
-  /*필요한 변수 선언*/
-  hpfp Binary = 0;      // 인코딩된 결과를 binary로 표현하기 위한 변수
-  unsigned short M = 0; // 유효숫자 값. 이 값은 x나 x/y 형태의 수 (x는 정수, y는 2의 제곱)
-  unsigned short E = 0; // 지수의 정수값
+  // signbit 결정
+  unsigned short s = (input < 0) ? 1: 0; 
+  if (s) input = -input; // 절대값 
 
-  unsigned short s = 0;   // signbit
-  unsigned short exp = 0; // exp
-
-  // Bias는 exponant가 5bit인 경우 15임.
-
-  int i; // 반복문 실행을 위한 변수
-
-  /*범위 안의 수인지 확인*/
-  /*case 확인하기 (normalized, demormalized, special values)*/
-  if (input > HPFP_MAX || input < -HPFP_MAX)
-  {
-    /*special values인 경우(오버플로우)*/
-    // 오류 처리 코드 작성
-    if (input > HPFP_MAX)
-    { // 양의 무한대를 나타내는 값 반환
-      Binary = 0b0111110000000000;
-    }
-    else if (input < -HPFP_MAX)
-    { // 음의 무한대를 나타내는 값 반환
-      Binary = 0b1111110000000000;
-    }
-    else
-    {
-      // NaN을 나타내는 값 반환
-      Binary = 0b0111110000000001;
-    }
-    return Binary;
+  int count = 0; 
+  for (int i = 15; i >= 0; i--){ // MSB부터 검사하여 처음 1이 등장하는 비트 위치 저장 
+    if ((input >> i) & 1) break;
+    count++;
   }
 
-  if (input == 0)
-  { // 0인 경우, denormalized
-    /*For **int** 0, mark the result as **hpfp** +0.0*/
+  // Exponent 설정 
+  unsigned short exp = (15 - count) + 15; // 가장 먼저 등장한 1의 위치에 15(Bias)를 더함
 
-    Binary = 0b1000000000000000;
-  }
-
-  // 0이 아닌 denormalized인 경우는 int에서는 없음
-
-  else if (input > 0)
-  { // 양의 정수, normalized
-    s = 0;
-    // M값 찾기
-    int count = 0;
-    for (i = sizeof(unsigned short) * 8 - 1; i >= 0; i--)
-    { // MSB부터 시작
-      count++;
-      if (((input >> i) & 1) == 1) // num의 i번째 비트를 추출하는 식{
-        break;
-    }
-    // for문이 끝나면 count는 맨 처음 나타난 1의 위치를 담고 있음.
-    for (i = 0; i <= sizeof(unsigned short) * 8 - 1 - count; i++)
-    {
-      // LSB부터 1바로 오른쪽까지 진행
-      M |= (((input >> i) & 1) << i);
-    }
-    E = 16 - count;
-    exp = E + 15;
-
-    /*비트연산해서 적절하게 집어넣기*/
-    M = M << (10 - (16 - count)); //*****확인 필요***
-
-    Binary |= (s << 15);
-    Binary |= (exp << 10);
-    Binary |= M;
-  }
-  else if (input < 0)
-  {        // 음의 정수, normalized
-    s = 1; // 부호 비트를 1로 설정
-
-    // 입력 값의 절댓값을 양수로 바꾸어 처리
-    input = -input;
-
-    int count = 0;
-    for (int i = sizeof(unsigned short) * 8 - 1; i >= 0; i--)
-    {
-      count++;
-      if (((input >> i) & 1) == 1)
-        break;
-    }
-    for (int i = 0; i <= sizeof(unsigned short) * 8 - 1 - count; i++)
-    {
-      M |= (((input >> i) & 1) << i);
-    }
-    E = 16 - count;
-    exp = E + 15;
-
-    M = M << (10 - (16 - count));
-
-    Binary |= (s << 15);
-    Binary |= (exp << 10);
-    Binary |= M;
-  }
-
-  else
-  {
-    /*정수가 아님. 오류처리 해야 함.*/
-    Binary = 0;
-  }
-  return Binary;
+  // 가장 먼저 등장한 1 이후의 비트들만 Mantissa로 저장 
+  unsigned short M = (input & ((1 << (15 - count)) - 1)) << (10 - (15 - count));
+  
+  // 최종 16bit hpfp 반환 
+  return (s << 15) | (exp << 10) | M;
 }
 
-int hpfp_to_int_converter(hpfp input)
-{
+int hpfp_to_int_converter(hpfp input){
   unsigned short s = (input >> 15) & 1;      // sign bit 추출
   unsigned short exp = (input >> 10) & 0x1F; // exponent bits 추출
   unsigned short M = input & 0x3FF;          // mantissa bits 추출
-
-  int E = exp - 15;
-  int value = 0;
-
-  if (s == 0 && exp == 0b11111 && M == 0)
-  { // 양의 무한대
-    value = INT_MAX;
-    return value;
+  
+  if (exp == 0b1111){
+    if (M == 0) return s ? INT_MIN : INT_MAX; // 양/음의 무한대 처리
+    else return INT_MIN; // NaN 처리 
   }
 
-  if (s == 1 && exp == 0b11111 && M == 0)
-  { // 음의 무한대
-    value = INT_MIN;
-    return value;
-  }
+  if (exp == 0b0000) return 0; // denormalized
 
-  if (exp == 0b11111 && M != 0)
-  { // NaN
-    value = INT_MIN;
-    return value;
-  }
-  if (exp == 0b00000)
-  { // denormallized
-    value = 0;
-    return value;
-  }
+  int E = exp - 15; // 지수 값
+  int value = (M >> (10 - E)) + (1 << E);
 
-  if (exp != 0b00000 && exp != 0b11111)
-  {
-    if (s == 0)
-    { // 양의 정수, normalized
-      // value = (M >> (10 - E)) * (1 << E);
-      value = (M >> (10 - E)) + (1 << E);
-      return value;
-    }
-    else
-    { //(s == 1), 음의 정수, normalized
-      value = (-1) * (M >> (10 - E)) + (1 << E);
-    }
-  }
-
-  return value;
+  // 부호에 따라 적절한 값 반환 
+  return s ? -value : value;
 }
 
 hpfp float_converter(float input)
