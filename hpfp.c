@@ -314,7 +314,7 @@ char *hpfp_to_bits_converter(hpfp result) {
   
   return bits;
 }
-
+// 추후 수정 !!!
 /** Example: hpfp(0100010011110011) -> float(4.95) -> float(59.4) -> hpfp(0101001101101100) */
 char *hpfp_flipper(char *input) {
   hpfp input_H = 0, output_H = 0;
