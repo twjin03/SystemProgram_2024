@@ -206,8 +206,6 @@ hpfp addition_function(hpfp a, hpfp b) {
   return (s_out << 15) | (exp_out << 10) | frac_out;
 }
 
-
-
 /** hpfp 곱셈 연산 */
 hpfp multiply_function(hpfp a, hpfp b) {
   //필요한 변수 선언 
