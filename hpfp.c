@@ -11,23 +11,23 @@
 #define HPFP_POS_ZERO 0b0000000000000000
 #define HPFP_NEG_ZERO 0b1000000000000000
 
-/** 제곱 계산 */
-float my_pow(float base, int exponent){
-  float result = 1.0;
-  while (exponent > 0){
-    result *= base;
-    exponent--;
-  }
-  return result;
-}
+// /** 제곱 계산 */
+// float my_pow(float base, int exponent){
+//   float result = 1.0;
+//   while (exponent > 0){
+//     result *= base;
+//     exponent--;
+//   }
+//   return result;
+// }
 
-/** 모듈러 연산 */
-float my_fmod(float x, float y){
-  while (x >= y){
-    x -= y;
-  }
-  return x;
-}
+// /** 모듈러 연산 */
+// float my_fmod(float x, float y){
+//   while (x >= y){
+//     x -= y;
+//   }
+//   return x;
+// }
 
 /** int -> hpfp로 변환 */
 hpfp int_converter(int input){ 
